@@ -146,18 +146,18 @@ friends so you can use all the same mechanisms for parameter binding.
 Whenever the underlying sqlite3 API returns anything else than success for
 a call, Clutch throws an error with the sqlite3 error message as message.
 
-## Missing values, NULLs and nils
+## Missing values, *NULL*s and nils
 
-There any many ways to handle mapping SQL NULLs into host language and vice
+There any many ways to handle mapping SQL *NULL*s into host language and vice
 versa. Clutch takes the approach that whenever `nil` would mean "missing value"
-in Lua, it is mapped to SQL `NULL`.
+in Lua, it is mapped to SQL *NULL*.
 
 This means that missing parameter values in all different methods of parameter
-binding are converted to SQL NULLs. So, if you omit or misspell a table key,
+binding are converted to SQL *NULL*s. So, if you omit or misspell a table key,
 misspell an interpolated variable name or omit some of the arguments from a
-vararg call, a `NULL` is bound to the parameter in question.
+vararg call, a *NULL* is bound to the parameter in question.
 
-Also if an SQL query returns `NULL` for some column in a row, the resulting
+Also if an SQL query returns *NULL* for some column in a row, the resulting
 table won't have a value for a key with that name.
 
 The result of all this is that any row returned by a query is valid parameter
@@ -165,7 +165,7 @@ mapping for a corresponding insert or update. It also means that you don't
 have to write awkward code mapping special NULL values to nil and vice versa in
 your sqlite3 interface code.
 
-As a sidenote, if you follow the practice of using `NOT NULL` by default for
+As a sidenote, if you follow the practice of using *NOT NULL* by default for
 SQL table columns, database constraint checks will catch the aforementioned
 errors. And it does so more reliably than any library code could.
 
