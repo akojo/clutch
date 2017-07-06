@@ -181,11 +181,7 @@ static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index) {
 static int bind_varargs(lua_State *L, int nparams, sqlite3_stmt *stmt) {
   int count = sqlite3_bind_parameter_count(stmt);
 
-  if (nparams < count) {
-    lua_settop(L, lua_gettop(L) + (count - nparams));
-  } else if (count < nparams) {
-    lua_settop(L, lua_gettop(L) - (nparams - count));
-  }
+  lua_settop(L, lua_gettop(L) + (count - nparams));
 
   int status = SQLITE_OK;
   while (count > 0) {
