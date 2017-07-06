@@ -71,7 +71,7 @@ they're simple to use
 db:query("select * from p where color = ?", {'Red'})
 ```
 
-Positional parameters can be supplied by prefixing the `?` with a number:
+Positional parameters can be supplied by suffixing the `?` with a number:
 
 ```lua
 db:query("select * from p where weight = ?2 color = ?1", {'Red', 12})
@@ -81,7 +81,7 @@ NB. Even though it is entirely possible to mix named, anonymous and positional
 parameters in the same query, I wouldn't recommend trying to do that unless you
 really want to confuse your readers.
 
-For a small number of parameters, it is a bit inconvenient to always write
+For a small number of parameters it is a bit inconvenient to always write
 the extra braces, so Clutch supports binding anonymous and positional
 parameters also as varargs:
 
@@ -91,9 +91,10 @@ db:query("select * from p where weight < ? and color = ?", 15, 'Red')
 
 ### Interpolated parameters
 
-For added convenience, if there are no extra arguments after the query, Clutch
-tries to look up for local variables with the same name as the query parameters.
-This comes in handy when you have e.g. wrapper functions around common queries:
+For added convenience, if there are no extra arguments after the query string,
+Clutch tries to look up for local variables with the same name as the query
+parameters. This comes in handy when you have e.g. wrapper functions around
+common queries:
 
 ```lua
 function getPartByPnum(pnum)
