@@ -109,7 +109,8 @@ variables, nor variables in the function's closure.
 
 For writing into the database, whether it be DDL statements, inserts or updates,
 Clutch offers a single method `update()`. It checks that the query it ran
-returns no results and throws an error otherwise.
+returns no results and throws an error otherwise. For *INSERT*, *UPDATE* and
+*DELETE* operations `update()` returns the number of modified rows.
 
 For example:
 

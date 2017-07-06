@@ -259,10 +259,11 @@ static int update(lua_State *L) {
   if (status != SQLITE_DONE) {
     return luaL_error(L, "%s", sqlite3_errmsg(db));
   }
-  sqlite3_finalize(*stmt);
-  *stmt = NULL;
+  lua_pushinteger(L, sqlite3_changes(db));
 
-  return 0;
+  close_sqlite_stmt(stmt);
+
+  return 1;
 }
 
 static int tostring(lua_State *L) {

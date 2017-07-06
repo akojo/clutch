@@ -178,6 +178,31 @@ function TestClutch:testQueryAllReturnsEmptyTableForNoResults()
     luaunit.assertItemsEquals(results, {})
 end
 
+function TestClutch:testInsertReturnsOneForNewRow()
+    local n = self.db:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+    luaunit.assertEquals(n, 1)
+end
+
+function TestClutch:testUpdateReturnsNumberOfModifiedRows()
+    local n = self.db:update("update p set weight = weight + 1 where color = 'Red'")
+    luaunit.assertEquals(n, 3)
+end
+
+function TestClutch:testUpdateWithNoMatchingRowsReturnsZero()
+    local n = self.db:update("update p set weight = weight + 1 where color = 'Pink'")
+    luaunit.assertEquals(n, 0)
+end
+
+function TestClutch:testDeleteReturnsNumberOfModifiedRows()
+    local n = self.db:update("delete from p where city = 'Paris'")
+    luaunit.assertEquals(n, 2)
+end
+
+function TestClutch:testDeleteWithNoMatchingRowsReturnsZero()
+    local n = self.db:update("delete from p where city = 'Vienna'")
+    luaunit.assertEquals(n, 0)
+end
+
 function TestClutch:testQueryOneReportsErrorWithTooManyResults()
     luaunit.assertErrorMsgContains(
         "too many results",
