@@ -142,6 +142,26 @@ end
 `update()` uses the same code for preparing queries as `query()` and its
 friends so you can use all the same mechanisms for parameter binding.
 
+## Transactions
+
+Clutch support transactions using the `transaction()` method. The method takes
+as a single parameter a function which will be run inside the transaction. Any
+error (be it from sqlite or Lua code) inside a transaction causes the
+it to be aborted and rolled back.
+
+For example:
+
+```lua
+db:transaction(function (t)
+    t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+    t:update("insert into p values (8, 'Washer', 'Black', 7, 'Helsinki')")
+end)
+```
+
+Since transactions have been implemented using sqlite3 savepoints, they can be
+freely nested. In addition, a rollback in an inner transaction doesn't
+automatically cause a rollback of the outer transaction.
+
 ## Error handling
 
 Whenever the underlying sqlite3 API returns anything else than success for

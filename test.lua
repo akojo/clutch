@@ -203,6 +203,81 @@ function TestClutch:testDeleteWithNoMatchingRowsReturnsZero()
     luaunit.assertEquals(n, 0)
 end
 
+function TestClutch:testUpdateInTransactionSucceeds()
+    self.db:transaction(function (t)
+        t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+    end)
+    luaunit.assertItemsEquals(
+        self.db:queryone('select city from p where pnum = 7'),
+        {city = "Helsinki"}
+    )
+end
+
+function TestClutch:testTransactionReturnsTheValuesFromTransactionFunction()
+    local success, result = self.db:transaction(function (t)
+        return t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+    end)
+    luaunit.assertTrue(success)
+    luaunit.assertEquals(result, 1)
+end
+
+function TestClutch:testTransactionRollsBackInCaseOfConstrainFailure()
+    local success, result = self.db:transaction(function (t)
+        t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+        t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+    end)
+    luaunit.assertFalse(success)
+    luaunit.assertStrContains(result, "UNIQUE constraint failed")
+    luaunit.assertEquals(#self.db:queryall("select * from p where pnum = 7"), 0)
+end
+
+function TestClutch:testTransactionRollsBackInCaseOfLuaError()
+    local success, result = self.db:transaction(function (t)
+        t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+        error("Lua error")
+    end)
+    luaunit.assertFalse(success)
+    luaunit.assertStrContains(result, "Lua error")
+    luaunit.assertEquals(#self.db:queryall("select * from p where pnum = 7"), 0)
+end
+
+function TestClutch:testNestedTransactionWritesToDatabase()
+    self.db:transaction(function (t)
+        t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+        t:transaction(function (t2)
+            t2:update("insert into p values (8, 'Washer', 'Black', 7, 'Helsinki')")
+        end)
+    end)
+    luaunit.assertItemsEquals(
+        #self.db:queryall("select city from p where city = 'Helsinki'"), 2)
+end
+
+function TestClutch:testErrorInNestedTransactionRollsBackOnlyInnerTransaction()
+    local success, result = self.db:transaction(function (t)
+        t:update("insert into p values (7, 'Washer', 'Grey', 5, 'Helsinki')")
+        return t:transaction(function (t2)
+            t2:update("insert into p values (8, 'Washer', 'Black', 7, 'Helsinki')")
+            error("Inner transaction")
+        end)
+    end)
+    luaunit.assertTrue(success)
+    luaunit.assertItemsEquals(
+        #self.db:queryall("select city from p where city = 'Helsinki'"), 1)
+end
+
+function TestClutch:testErrorInOuterTransactionRollsBackAlsoInnerTransaction()
+    local success, result = self.db:transaction(function (t)
+        t:transaction(function (t2)
+            t2:update("insert into p values (8, 'Washer', 'Black', 7, 'Helsinki')")
+        end)
+        return t:update("insert into p values (8, 'Washer', 'Grey', 5, 'Helsinki')")
+    end)
+    luaunit.assertFalse(success)
+    luaunit.assertStrContains(result, "UNIQUE constraint failed")
+    luaunit.assertItemsEquals(
+        #self.db:queryall("select city from p where city = 'Helsinki'"), 0)
+end
+
 function TestClutch:testQueryOneReportsErrorWithTooManyResults()
     luaunit.assertErrorMsgContains(
         "too many results",

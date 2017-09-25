@@ -10,6 +10,7 @@ static int query(lua_State *L);
 static int query_one(lua_State *L);
 static int query_all(lua_State *L);
 static int update(lua_State *L);
+static int transaction(lua_State *L);
 static int tostring(lua_State *L);
 static int close_db(lua_State *L);
 
@@ -35,10 +36,15 @@ static void close_sqlite_stmt(sqlite3_stmt **stmt);
 static const struct luaL_Reg clutch_funcs[] = {{"open", open_db}, {NULL, NULL}};
 
 static const struct luaL_Reg clutch_db_methods[] = {
-    {"query", query},        {"queryone", query_one},
-    {"queryall", query_all}, {"update", update},
-    {"close", close_db},     {"__tostring", tostring},
-    {"__gc", close_db},      {NULL, NULL}};
+    {"query", query},
+    {"queryone", query_one},
+    {"queryall", query_all},
+    {"update", update},
+    {"transaction", transaction},
+    {"close", close_db},
+    {"__tostring", tostring},
+    {"__gc", close_db},
+    {NULL, NULL}};
 
 static const struct luaL_Reg clutch_stmt_methods[] = {{"__gc", close_stmt},
                                                       {NULL, NULL}};
@@ -260,6 +266,31 @@ static int update(lua_State *L) {
   close_sqlite_stmt(stmt);
 
   return 1;
+}
+
+static int transaction(lua_State *L) {
+  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  luaL_argcheck(L, lua_type(L, 2) == LUA_TFUNCTION, 2,
+                "argument 2 is not a function");
+
+  int status = sqlite3_exec(db, "SAVEPOINT clutch_savepoint", NULL, NULL, NULL);
+  if (status != SQLITE_OK) {
+    return luaL_error(L, "%s", sqlite3_errmsg(db));
+  }
+
+  lua_settop(L, 2);
+  lua_insert(L, -2);
+  status = lua_pcall(L, 1, LUA_MULTRET, 0);
+
+  if (status == LUA_OK) {
+    sqlite3_exec(db, "RELEASE clutch_savepoint", NULL, NULL, NULL);
+  } else {
+    sqlite3_exec(db, "ROLLBACK TO clutch_savepoint", NULL, NULL, NULL);
+  }
+  lua_pushboolean(L, status == LUA_OK);
+
+  lua_insert(L, 1);
+  return lua_gettop(L);
 }
 
 static int tostring(lua_State *L) {
