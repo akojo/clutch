@@ -205,73 +205,73 @@ end
 
 function TestClutch:testPreparedStatement()
     local stmt = self.db:prepare("select city from p where pnum = :pnum")
-    local iter = stmt:iter({pnum = 1})
+    local iter = stmt:query({pnum = 1})
     luaunit.assertItemsEquals(iter(), {city = "London"})
 end
 
 function TestClutch:testPreparedStatementCanBeRebound()
     local stmt = self.db:prepare("select pnum, city from p where pnum = :pnum")
     for pnum, city in ipairs({"London", "Paris"}) do
-        local iter = stmt:iter({pnum = pnum})
+        local iter = stmt:query({pnum = pnum})
         luaunit.assertItemsEquals(iter(), {pnum = pnum, city = city})
     end
 end
 
 function TestClutch:testPreparedStatementIterReturnsNilAfterLastResult()
     local stmt = self.db:prepare("select city from p where pnum = :pnum")
-    local iter = stmt:iter({pnum = 2})
+    local iter = stmt:query({pnum = 2})
     luaunit.assertItemsEquals(iter(), {city = "Paris"})
     luaunit.assertNil(iter())
 end
 
 function TestClutch:testPreparedStatementIterReturnsNilForNoResults()
     local stmt = self.db:prepare("select city from p where pnum = :pnum")
-    local iter = stmt:iter({pnum = 100})
+    local iter = stmt:query({pnum = 100})
     luaunit.assertNil(iter())
 end
 
 function TestClutch:testPreparedStatementIterWorksWithTableArguments()
     local stmt = self.db:prepare("select city from p where pnum = ?")
-    local iter = stmt:iter({3})
+    local iter = stmt:query({3})
     luaunit.assertItemsEquals(iter(), {city = "Oslo"})
 end
 
 function TestClutch:testPreparedStatementIterWorksWithVarargs()
     local stmt = self.db:prepare("select city from p where pnum = ?")
-    local iter = stmt:iter(3)
+    local iter = stmt:query(3)
     luaunit.assertItemsEquals(iter(), {city = "Oslo"})
 end
 
 function TestClutch:testPreparedStatementReturnsOneResult()
     local stmt = self.db:prepare("select city from p where pnum = :pnum")
-    luaunit.assertItemsEquals(stmt:one({pnum = 1}), {city = "London"})
+    luaunit.assertItemsEquals(stmt:queryone({pnum = 1}), {city = "London"})
 end
 
 function TestClutch:testPreparedStatementOneFailsWithNoResults()
     local stmt = self.db:prepare("select city from p where pnum = :pnum")
     luaunit.assertErrorMsgContains("no results",
-        function() stmt:one({pnum = 100}) end)
+        function() stmt:queryone({pnum = 100}) end)
 end
 
 function TestClutch:testPreparedStatementOneFailsWithTooManyResults()
     local stmt = self.db:prepare("select city from p where color = :color")
     luaunit.assertErrorMsgContains("too many results",
-        function() stmt:one({color = "Red"}) end)
+        function() stmt:queryone({color = "Red"}) end)
 end
 
 function TestClutch:testPreparedStatementOneWorksWithTableArguments()
     local stmt = self.db:prepare("select city from p where pnum = ?")
-    luaunit.assertItemsEquals(stmt:one({4}), {city = "London"})
+    luaunit.assertItemsEquals(stmt:queryone({4}), {city = "London"})
 end
 
 function TestClutch:testPreparedStatementOneWorksWithVarargs()
     local stmt = self.db:prepare("select city from p where pnum = ?")
-    luaunit.assertItemsEquals(stmt:one(4), {city = "London"})
+    luaunit.assertItemsEquals(stmt:queryone(4), {city = "London"})
 end
 
 function TestClutch:testPreparedStatementReturnsAllResults()
     local stmt = self.db:prepare("select pname from p where color = :color")
-    local results = stmt:all({color = "Red"})
+    local results = stmt:queryall({color = "Red"})
     for i, name in ipairs({"Nut", "Screw", "Cog"}) do
         luaunit.assertItemsEquals(results[i], {pname = name})
     end
@@ -279,17 +279,25 @@ end
 
 function TestClutch:testPreparedStatementAllResultsEmptyTableForNoResults()
     local stmt = self.db:prepare("select pname from p where color = :color")
-    luaunit.assertEquals(stmt:all({color = "Pink"}), {})
+    luaunit.assertEquals(stmt:queryall({color = "Pink"}), {})
 end
 
 function TestClutch:testPreparedStatementAllWorksWithTableArguments()
     local stmt = self.db:prepare("select city from p where pnum = ?")
-    luaunit.assertItemsEquals(stmt:all({5})[1], {city = "Paris"})
+    luaunit.assertItemsEquals(stmt:queryall({5})[1], {city = "Paris"})
 end
 
 function TestClutch:testPreparedStatementAllWorksWithVarargs()
     local stmt = self.db:prepare("select city from p where pnum = ?")
-    luaunit.assertItemsEquals(stmt:all(5)[1], {city = "Paris"})
+    luaunit.assertItemsEquals(stmt:queryall(5)[1], {city = "Paris"})
+end
+
+function TestClutch:testPreparedStatementUpdate()
+    local stmt = self.db:prepare("insert into p values (?, ?, ?, ?, ?)")
+    stmt:update({7, "Washer", "Grey", 5.0, "Helsinki"})
+
+    local result = self.db:queryone("select pname from p where pnum = 7")
+    luaunit.assertEquals(result.pname, "Washer")
 end
 
 function TestClutch:testUpdateInTransactionSucceeds()

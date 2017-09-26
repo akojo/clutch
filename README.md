@@ -142,12 +142,61 @@ end
 `update()` uses the same code for preparing queries as `query()` and its
 friends so you can use all the same mechanisms for parameter binding.
 
+## Prepared statements
+
+Clutch supports a straightforward way to use prepared statements. You create a
+prepared statement using database `prepare()` method; then bind parameters and
+run the statement using its `update()`, `query()`, `queryone()` or `queryall()`
+methods. These methods correspond exactly to the database methods of same name.
+
+For example, to iterate through all red parts:
+
+```lua
+local stmt = db:prepare("select * from p where color = :color")
+for p in stmt:iter({color = "Red"})
+    print(p.name)
+end
+```
+
+Since the statement methods support all the same mechanisms for parameter
+binding as the database query methods, this can also be written e.g.:
+
+```lua
+local stmt = db:prepare("select * from p where color = ?")
+for p in stmt:iter("Red")
+    print(p.name)
+end
+```
+
+NB. Even though prepared statements support also interpolated parameters, using
+them will most likely lead to code that's very hard to decipher.
+
+As another example, to insert some values into table `p`, and demonstrate yet
+another way of binding parameters:
+
+```lua
+local stmt = db:prepare("insert into p values (?, ?, ?, ?, ?)")
+
+stmt:update({1, "Nut", "Red", 12.0, "London"})
+stmt:update({2, "Bolt", "Green", 17.0, "Paris"})
+stmt:update({3, "Screw", "Blue", 17.0, "Oslo"})
+```
+
+Calling any of the statement methods will cause the statement to be
+reset. This design has two notable implications:
+
+* It is perfectly safe to not iterate through all resulting rows when using
+`iter()`
+* Mixing calls to an iterator obtained via `iter()` and any of the statement
+methods will produce unpredictable results
+
 ## Transactions
 
 Clutch support transactions using the `transaction()` method. The method takes
 as a single parameter a function which will be run inside the transaction. Any
-error (be it from sqlite or Lua code) inside a transaction causes the
-it to be aborted and rolled back.
+error (be it from sqlite or Lua code) inside a transaction causes it to be
+aborted and rolled back. This will also cause the error to be thrown from the
+transaction call.
 
 For example:
 

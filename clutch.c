@@ -20,11 +20,11 @@ static int db_transaction(lua_State *L);
 static int db_update(lua_State *L);
 
 static int prep_stmt_all(lua_State *L);
-static int prep_stmt_bind(lua_State *L);
 static int prep_stmt_close(lua_State *L);
 static int prep_stmt_iter(lua_State *L);
 static int prep_stmt_one(lua_State *L);
 static int prep_stmt_tostring(lua_State *L);
+static int prep_stmt_update(lua_State *L);
 
 static sqlite3_stmt *rebind_stmt(lua_State *L);
 static sqlite3_stmt *prepare_query(lua_State *L);
@@ -42,6 +42,7 @@ static int step(lua_State *L, sqlite3_stmt *stmt);
 static int step_one(lua_State *L, sqlite3_stmt *stmt);
 static int step_all(lua_State *L, sqlite3_stmt *stmt);
 static void handle_row(lua_State *L, sqlite3_stmt *stmt);
+static int update(lua_State *L, sqlite3_stmt *stmt);
 
 static void close_sqlite(sqlite3 **db);
 static void close_sqlite_stmt(sqlite3_stmt **stmt);
@@ -57,10 +58,10 @@ static const struct luaL_Reg clutch_db_methods[] = {
     {"__tostring", db_tostring}, {NULL, NULL}};
 
 static const struct luaL_Reg clutch_stmt_methods[] = {
-    {"all", prep_stmt_all},
-    {"bind", prep_stmt_bind},
-    {"iter", prep_stmt_iter},
-    {"one", prep_stmt_one},
+    {"query", prep_stmt_iter},
+    {"queryall", prep_stmt_all},
+    {"queryone", prep_stmt_one},
+    {"update", prep_stmt_update},
     {"__gc", prep_stmt_close},
     {"__tostring", prep_stmt_tostring},
     {NULL, NULL}};
@@ -160,25 +161,9 @@ static int db_transaction(lua_State *L) {
   return lua_gettop(L);
 }
 
-static int db_update(lua_State *L) {
-  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
-  sqlite3_stmt *stmt = prepare_query(L);
-
-  int status = sqlite3_step(stmt);
-  if (status != SQLITE_DONE) {
-    return luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
-  lua_pushinteger(L, sqlite3_changes(db));
-
-  return 1;
-}
+static int db_update(lua_State *L) { return update(L, prepare_query(L)); }
 
 static int prep_stmt_all(lua_State *L) { return step_all(L, rebind_stmt(L)); }
-
-static int prep_stmt_bind(lua_State *L) {
-  bind_stmt(L, *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt"), 1);
-  return 1;
-}
 
 static int prep_stmt_close(lua_State *L) {
   close_sqlite_stmt((sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt"));
@@ -198,6 +183,8 @@ static int prep_stmt_tostring(lua_State *L) {
   lua_pushstring(L, sqlite3_expanded_sql(stmt));
   return 1;
 }
+
+static int prep_stmt_update(lua_State *L) { return update(L, rebind_stmt(L)); }
 
 static sqlite3_stmt *rebind_stmt(lua_State *L) {
   sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt");
@@ -405,6 +392,18 @@ static void handle_row(lua_State *L, sqlite3_stmt *stmt) {
     }
     lua_rawset(L, -3);
   }
+}
+
+static int update(lua_State *L, sqlite3_stmt *stmt) {
+  sqlite3 *db = sqlite3_db_handle(stmt);
+
+  int status = sqlite3_step(stmt);
+  if (status != SQLITE_DONE) {
+    return luaL_error(L, "%s", sqlite3_errmsg(db));
+  }
+  lua_pushinteger(L, sqlite3_changes(db));
+
+  return 1;
 }
 
 static void close_sqlite(sqlite3 **db) {
