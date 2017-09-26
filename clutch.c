@@ -26,12 +26,6 @@ static int prep_stmt_iter(lua_State *L);
 static int prep_stmt_one(lua_State *L);
 static int prep_stmt_tostring(lua_State *L);
 
-static int iter(lua_State *L);
-static int step(lua_State *L, sqlite3_stmt *stmt);
-static int step_one(lua_State *L, sqlite3_stmt *stmt);
-static int step_all(lua_State *L, sqlite3_stmt *stmt);
-static void handle_row(lua_State *L, sqlite3_stmt *stmt);
-
 static sqlite3_stmt *rebind_stmt(lua_State *L);
 static sqlite3_stmt *prepare_query(lua_State *L);
 static sqlite3_stmt *prepare_stmt(lua_State *L, sqlite3 *db);
@@ -43,6 +37,12 @@ static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index);
 static int is_named_parameter(const char *name);
 static void find_local(lua_State *L, const char *name);
 
+static int iter(lua_State *L);
+static int step(lua_State *L, sqlite3_stmt *stmt);
+static int step_one(lua_State *L, sqlite3_stmt *stmt);
+static int step_all(lua_State *L, sqlite3_stmt *stmt);
+static void handle_row(lua_State *L, sqlite3_stmt *stmt);
+
 static void close_sqlite(sqlite3 **db);
 static void close_sqlite_stmt(sqlite3_stmt **stmt);
 
@@ -50,19 +50,19 @@ static const struct luaL_Reg clutch_funcs[] = {{"open", clutch_open},
                                                {NULL, NULL}};
 
 static const struct luaL_Reg clutch_db_methods[] = {
-    {"prepare", db_prepare},    {"query", db_query},
-    {"queryone", db_query_one}, {"queryall", db_query_all},
-    {"update", db_update},      {"transaction", db_transaction},
-    {"close", db_close},        {"__tostring", db_tostring},
-    {"__gc", db_close},         {NULL, NULL}};
+    {"close", db_close},         {"prepare", db_prepare},
+    {"query", db_query},         {"queryall", db_query_all},
+    {"queryone", db_query_one},  {"transaction", db_transaction},
+    {"update", db_update},       {"__gc", db_close},
+    {"__tostring", db_tostring}, {NULL, NULL}};
 
 static const struct luaL_Reg clutch_stmt_methods[] = {
+    {"all", prep_stmt_all},
     {"bind", prep_stmt_bind},
     {"iter", prep_stmt_iter},
-    {"all", prep_stmt_all},
     {"one", prep_stmt_one},
-    {"__tostring", prep_stmt_tostring},
     {"__gc", prep_stmt_close},
+    {"__tostring", prep_stmt_tostring},
     {NULL, NULL}};
 
 int luaopen_clutch(lua_State *L) {
@@ -108,12 +108,19 @@ static int clutch_open(lua_State *L) {
   return 1;
 }
 
-static void close_sqlite(sqlite3 **db) {
-  if (*db) {
-    sqlite3_close_v2(*db);
-    *db = NULL;
-  }
+static int db_close(lua_State *L) {
+  close_sqlite((sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db"));
+  return 0;
 }
+
+static int db_prepare(lua_State *L) {
+  prepare_stmt(L, *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db"));
+  return 1;
+}
+
+static int db_query_all(lua_State *L) { return step_all(L, prepare_query(L)); }
+
+static int db_query_one(lua_State *L) { return step_one(L, prepare_query(L)); }
 
 static int db_query(lua_State *L) {
   prepare_query(L);
@@ -121,18 +128,61 @@ static int db_query(lua_State *L) {
   return 1;
 }
 
-static int db_query_one(lua_State *L) { return step_one(L, prepare_query(L)); }
-
-static int db_query_all(lua_State *L) { return step_all(L, prepare_query(L)); }
-
-static int db_prepare(lua_State *L) {
-  prepare_stmt(L, *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db"));
+static int db_tostring(lua_State *L) {
+  sqlite3 **db = (sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  const char *name = sqlite3_db_filename(*db, "main");
+  lua_pushfstring(L, "sqlite3: %s", name);
   return 1;
 }
+
+static int db_transaction(lua_State *L) {
+  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  luaL_argcheck(L, lua_type(L, 2) == LUA_TFUNCTION, 2,
+                "argument 2 is not a function");
+
+  int status = sqlite3_exec(db, "SAVEPOINT clutch_savepoint", NULL, NULL, NULL);
+  if (status != SQLITE_OK) {
+    return luaL_error(L, "%s", sqlite3_errmsg(db));
+  }
+
+  lua_settop(L, 2);
+  lua_insert(L, -2);
+  status = lua_pcall(L, 1, LUA_MULTRET, 0);
+
+  if (status == LUA_OK) {
+    sqlite3_exec(db, "RELEASE clutch_savepoint", NULL, NULL, NULL);
+  } else {
+    sqlite3_exec(db, "ROLLBACK TO clutch_savepoint", NULL, NULL, NULL);
+  }
+  lua_pushboolean(L, status == LUA_OK);
+
+  lua_insert(L, 1);
+  return lua_gettop(L);
+}
+
+static int db_update(lua_State *L) {
+  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  sqlite3_stmt *stmt = prepare_query(L);
+
+  int status = sqlite3_step(stmt);
+  if (status != SQLITE_DONE) {
+    return luaL_error(L, "%s", sqlite3_errmsg(db));
+  }
+  lua_pushinteger(L, sqlite3_changes(db));
+
+  return 1;
+}
+
+static int prep_stmt_all(lua_State *L) { return step_all(L, rebind_stmt(L)); }
 
 static int prep_stmt_bind(lua_State *L) {
   bind_stmt(L, *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt"), 1);
   return 1;
+}
+
+static int prep_stmt_close(lua_State *L) {
+  close_sqlite_stmt((sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt"));
+  return 0;
 }
 
 static int prep_stmt_iter(lua_State *L) {
@@ -142,8 +192,6 @@ static int prep_stmt_iter(lua_State *L) {
 }
 
 static int prep_stmt_one(lua_State *L) { return step_one(L, rebind_stmt(L)); }
-
-static int prep_stmt_all(lua_State *L) { return step_all(L, rebind_stmt(L)); }
 
 static int prep_stmt_tostring(lua_State *L) {
   sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt");
@@ -298,56 +346,6 @@ static void find_local(lua_State *L, const char *name) {
   lua_pushnil(L);
 }
 
-static int db_update(lua_State *L) {
-  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
-  sqlite3_stmt *stmt = prepare_query(L);
-
-  int status = sqlite3_step(stmt);
-  if (status != SQLITE_DONE) {
-    return luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
-  lua_pushinteger(L, sqlite3_changes(db));
-
-  return 1;
-}
-
-static int db_transaction(lua_State *L) {
-  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
-  luaL_argcheck(L, lua_type(L, 2) == LUA_TFUNCTION, 2,
-                "argument 2 is not a function");
-
-  int status = sqlite3_exec(db, "SAVEPOINT clutch_savepoint", NULL, NULL, NULL);
-  if (status != SQLITE_OK) {
-    return luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
-
-  lua_settop(L, 2);
-  lua_insert(L, -2);
-  status = lua_pcall(L, 1, LUA_MULTRET, 0);
-
-  if (status == LUA_OK) {
-    sqlite3_exec(db, "RELEASE clutch_savepoint", NULL, NULL, NULL);
-  } else {
-    sqlite3_exec(db, "ROLLBACK TO clutch_savepoint", NULL, NULL, NULL);
-  }
-  lua_pushboolean(L, status == LUA_OK);
-
-  lua_insert(L, 1);
-  return lua_gettop(L);
-}
-
-static int db_tostring(lua_State *L) {
-  sqlite3 **db = (sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
-  const char *name = sqlite3_db_filename(*db, "main");
-  lua_pushfstring(L, "sqlite3: %s", name);
-  return 1;
-}
-
-static int db_close(lua_State *L) {
-  close_sqlite((sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db"));
-  return 0;
-}
-
 static int iter(lua_State *L) {
   sqlite3_stmt *stmt = *(sqlite3_stmt **)lua_touserdata(L, lua_upvalueindex(1));
   return step(L, stmt);
@@ -409,9 +407,11 @@ static void handle_row(lua_State *L, sqlite3_stmt *stmt) {
   }
 }
 
-static int prep_stmt_close(lua_State *L) {
-  close_sqlite_stmt((sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt"));
-  return 0;
+static void close_sqlite(sqlite3 **db) {
+  if (*db) {
+    sqlite3_close_v2(*db);
+    *db = NULL;
+  }
 }
 
 static void close_sqlite_stmt(sqlite3_stmt **stmt) {
