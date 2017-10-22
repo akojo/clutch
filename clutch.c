@@ -321,14 +321,14 @@ static int is_named_parameter(const char *name) {
 
 static void find_local(lua_State *L, const char *name) {
   lua_Debug debug;
-  lua_getstack(L, 1, &debug);
-
-  int index = 1;
-  const char *lname;
-  while ((lname = lua_getlocal(L, &debug, index++))) {
-    if (!strcmp(name, lname))
-      return;
-    lua_pop(L, 1);
+  for (int level = 1; lua_getstack(L, level, &debug); ++level) {
+    int index = 1;
+    const char *lname;
+    while ((lname = lua_getlocal(L, &debug, index++))) {
+      if (!strcmp(name, lname))
+        return;
+      lua_pop(L, 1);
+    }
   }
   lua_pushnil(L);
 }

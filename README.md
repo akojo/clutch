@@ -102,9 +102,8 @@ function getPartByPnum(pnum)
 do
 ```
 
-NB. This functionality is strictly limited to the locals and arguments of
-currently executing function. It cannot be used to interpolate global
-variables, nor variables in the function's closure.
+NB. This functionality is limited to locals in the scope of currently executing
+function. It cannot be used to interpolate global variables.
 
 ## Issuing updates to the database
 

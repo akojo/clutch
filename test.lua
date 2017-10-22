@@ -119,6 +119,16 @@ function TestClutch:testInterpolatedParameterBindingWithArgument()
     f(1)
 end
 
+function TestClutch:testInterpolatedParameterBindingWithClosure()
+    local pnum = 1
+    local f = function()
+        assertSingleResult(
+            self.db:query('select pname from p where pnum = $pnum'),
+            {pname = 'Nut'})
+    end
+    f()
+end
+
 function TestClutch:testStringParameterBinding()
     assertSingleResult(
         self.db:query('select pnum from p where color = $color', {color = 'Green'}),
