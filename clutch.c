@@ -180,7 +180,7 @@ static int prep_stmt_one(lua_State *L) { return step_one(L, rebind_stmt(L)); }
 
 static int prep_stmt_tostring(lua_State *L) {
   sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt");
-  lua_pushstring(L, sqlite3_expanded_sql(stmt));
+  lua_pushstring(L, sqlite3_sql(stmt));
   return 1;
 }
 
