@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/akojo/clutch.svg?branch=master)](https://travis-ci.org/akojo/clutch)
+
 # Clutch Sqlite3 API
 
 Clutch is a simple and straightforward sqlite3 API for Lua.
