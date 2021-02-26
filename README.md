@@ -1,4 +1,4 @@
-[![Build Status](https://travis-ci.org/akojo/clutch.svg?branch=master)](https://travis-ci.org/akojo/clutch)
+![tests](https://github.com/akojo/clutch/actions/workflows/ci.yml/badge.svg)
 
 # Clutch Sqlite3 API
 
