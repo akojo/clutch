@@ -1,8 +1,8 @@
 package = "clutch"
-version = "1.2-2"
+version = "1.3-0"
 source = {
     url = "git://github.com/akojo/clutch",
-    tag = "v1.2.2"
+    tag = "v1.3.0"
 }
 description = {
     summary = "A simple API for sqlite3",
