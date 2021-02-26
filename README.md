@@ -134,12 +134,24 @@ local dbsetup = {
     "INSERT INTO p VALUES (6, 'Cog', 'Red', 19, 'London')",
 }
 for _, query in ipairs(dbsetup) do
-    self.db:update(query)
+    db:update(query)
 end
 ```
 
 `update()` uses the same code for preparing queries as `query()` and its
 friends so you can use all the same mechanisms for parameter binding.
+
+## Pragmas
+
+Since `PRAGMA` statements in SQLite are like any other SQL statements, you can
+use them via update and query functions. For example after running
+
+```lua
+db:update("PRAGMA encoding = 'UTF-16'")
+encoding = db:queryone("PRAGMA encoding").encoding
+```
+
+variable _encoding_ will have value `UTF-16le`.
 
 ## Prepared statements
 
@@ -152,7 +164,7 @@ For example, to „„ate through all red parts:
 
 ```lua
 local stmt = db:prepare("select * from p where color = :color")
-for p in stmt:query({color = "Red"})
+for p in stmt:query({color = "Red"}) do
     print(p.name)
 end
 ```
@@ -162,7 +174,7 @@ binding as the database query methods, this can also be written e.g.:
 
 ```lua
 local stmt = db:prepare("select * from p where color = ?")
-for p in stmt:query("Red")
+for p in stmt:query("Red") do
     print(p.name)
 end
 ```
