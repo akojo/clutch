@@ -40,9 +40,9 @@ Clutch maps the result into Lua tables with the column names as keys.
 As a convenience, `clutch` provides two query shorthands:
 
 - `queryone()` checks that the query results into exactly one row and returns
-that row as a single table. Otherwise it throws an error.
+  that row as a single table. Otherwise it throws an error.
 - `queryall()` returns all resulting rows in a Lua array. In case the query
-returns an empty result set, the method returns an empty table.
+  returns an empty result set, the method returns an empty table.
 
 ## Binding parameters to queries
 
@@ -93,26 +93,24 @@ db:query("select * from p where weight < ? and color = ?", 15, 'Red')
 
 ### Interpolated parameters
 
-For added convenience, if there are no extra arguments after the query string,
-Clutch tries to look up for local variables with the same name as the query
-parameters. This comes in handy when you have e.g. wrapper functions around
-common queries:
+This feature was inspired by the original SQLite
+[Tcl extension](https://sqlite.org/tclsqlite.html).
+If there are no extra arguments after the query string Clutch tries to look up
+for variables with the same name as the query parameters. This comes in handy
+when you have e.g. wrapper functions around common queries:
 
 ```lua
 function getPartByPnum(pnum)
     return db:queryone('select * from p where pnum = $pnum')
-do
+end
 ```
-
-NB. This functionality is limited to locals in the scope of currently executing
-function. It cannot be used to interpolate global variables.
 
 ## Issuing updates to the database
 
 For writing into the database, whether it be DDL statements, inserts or updates,
 Clutch offers a single method `update()`. It checks that the query it ran
-returns no results and throws an error otherwise. For *INSERT*, *UPDATE* and
-*DELETE* operations `update()` returns the number of modified rows.
+returns no results and throws an error otherwise. For _INSERT_, _UPDATE_ and
+_DELETE_ operations `update()` returns the number of modified rows.
 
 For example:
 
@@ -186,10 +184,10 @@ stmt:update({3, "Screw", "Blue", 17.0, "Oslo"})
 Calling any of the statement methods will cause the statement to be
 reset. This design has two notable implications:
 
-* It is perfectly safe to not iterate through all resulting rows when using
-`query()`
-* Mixing calls to an iterator obtained via `query()` and any of the statement
-methods will produce unpredictable results
+- It is perfectly safe to not iterate through all resulting rows when using
+  `query()`
+- Mixing calls to an iterator obtained via `query()` and any of the statement
+  methods will produce unpredictable results
 
 ## Transactions
 
@@ -221,14 +219,14 @@ a call, Clutch throws an error with the sqlite3 error message as message.
 
 There any many ways to handle mapping SQL *NULL*s into host language and vice
 versa. Clutch takes the approach that whenever `nil` would mean "missing value"
-in Lua, it is mapped to SQL *NULL*.
+in Lua, it is mapped to SQL _NULL_.
 
 This means that missing parameter values in all different methods of parameter
 binding are converted to SQL *NULL*s. So, if you omit or misspell a table key,
 misspell an interpolated variable name or omit some of the arguments from a
-vararg call, a *NULL* is bound to the parameter in question.
+vararg call, a _NULL_ is bound to the parameter in question.
 
-Also if an SQL query returns *NULL* for some column in a row, the resulting
+Also if an SQL query returns _NULL_ for some column in a row, the resulting
 table won't have a value for a key with that name.
 
 The result of all this is that any row returned by a query is valid parameter
@@ -236,13 +234,14 @@ mapping for a corresponding insert or update. It also means that you don't
 have to write awkward code mapping special NULL values to nil and vice versa in
 your sqlite3 interface code.
 
-As a sidenote, if you follow the practice of using *NOT NULL* by default for
+As a sidenote, if you follow the practice of using _NOT NULL_ by default for
 SQL table columns, database constraint checks will catch the aforementioned
 errors. And it does so more reliably than any library code could.
 
 ## Building, installing and running tests
 
 Clutch is distributed as a Luarock, so the easiest way to install it is:
+
 ```sh
 $ luarocks install clutch
 ```
@@ -256,11 +255,13 @@ project and calling `luaopen_clutch()` from your `main()`, for example.
 
 Clutch uses luarocks "builtin" build mechanism, so you can also build it from
 source easily:
+
 ```sh
 $ luarocks make
 ```
 
 To run Clutch unit tests you need `luaunit` rock. The test can be run with:
+
 ```sh
 $ lua test.lua
 ```

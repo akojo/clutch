@@ -129,6 +129,16 @@ function TestClutch:testInterpolatedParameterBindingWithClosure()
     f()
 end
 
+function TestClutch:testInterpolatedParameterBindingWithGlobal()
+    globalNum = 1
+    local f = function()
+        assertSingleResult(
+            self.db:query('select pname from p where pnum = $globalNum'),
+            {pname = 'Nut'})
+    end
+    f()
+end
+
 function TestClutch:testStringParameterBinding()
     assertSingleResult(
         self.db:query('select pnum from p where color = $color', {color = 'Green'}),

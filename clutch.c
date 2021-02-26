@@ -32,10 +32,10 @@ static sqlite3_stmt *prepare_stmt(lua_State *L, sqlite3 *db);
 static int bind_stmt(lua_State *L, sqlite3_stmt *stmt, int nargs);
 static int bind_params(lua_State *L, sqlite3_stmt *stmt);
 static int bind_varargs(lua_State *L, int nargs, sqlite3_stmt *stmt);
-static int bind_locals(lua_State *L, sqlite3_stmt *stmt);
+static int bind_lua_vars(lua_State *L, sqlite3_stmt *stmt);
 static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index);
 static int is_named_parameter(const char *name);
-static void find_local(lua_State *L, const char *name);
+static void find_var(lua_State *L, const char *name);
 
 static int iter(lua_State *L);
 static int step(lua_State *L, sqlite3_stmt *stmt);
@@ -247,7 +247,7 @@ static int bind_stmt(lua_State *L, sqlite3_stmt *stmt, int nargs)
 {
   int top = lua_gettop(L);
   if (top < nargs + 1)
-    return bind_locals(L, stmt);
+    return bind_lua_vars(L, stmt);
   else if (lua_istable(L, nargs + 1))
     return bind_params(L, stmt);
   else
@@ -333,7 +333,7 @@ static int bind_varargs(lua_State *L, int nparams, sqlite3_stmt *stmt)
   return status;
 }
 
-static int bind_locals(lua_State *L, sqlite3_stmt *stmt)
+static int bind_lua_vars(lua_State *L, sqlite3_stmt *stmt)
 {
   int count = sqlite3_bind_parameter_count(stmt);
   int status = SQLITE_OK;
@@ -346,7 +346,7 @@ static int bind_locals(lua_State *L, sqlite3_stmt *stmt)
       return luaL_error(L, "anonymous and numbered parameters not supported");
     }
 
-    find_local(L, name + 1);
+    find_var(L, name + 1);
     status = bind_one_param(L, stmt, i);
     if (status != SQLITE_OK)
       break;
@@ -359,7 +359,7 @@ static int is_named_parameter(const char *name)
   return name[0] == ':' || name[0] == '@' || name[0] == '$';
 }
 
-static void find_local(lua_State *L, const char *name)
+static void find_var(lua_State *L, const char *name)
 {
   lua_Debug debug;
   for (int level = 1; lua_getstack(L, level, &debug); ++level)
@@ -373,7 +373,7 @@ static void find_local(lua_State *L, const char *name)
       lua_pop(L, 1);
     }
   }
-  lua_pushnil(L);
+  lua_getglobal(L, name);
 }
 
 static int iter(lua_State *L)
