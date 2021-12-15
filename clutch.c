@@ -291,21 +291,21 @@ static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index)
   {
     status = sqlite3_bind_int64(stmt, index, lua_toboolean(L, -1));
   }
+#if LUA_VERSION_NUM >= 503
+  else if (lua_isinteger(L, -1))
+  {
+    status = sqlite3_bind_int64(stmt, index, lua_tointeger(L, -1));
+  }
+#endif
+  else if (lua_isnumber(L, -1))
+  {
+    status = sqlite3_bind_double(stmt, index, lua_tonumber(L, -1));
+  }
   else if (lua_isstring(L, -1))
   {
     size_t len;
     const char *text = lua_tolstring(L, -1, &len);
     status = sqlite3_bind_text(stmt, index, text, len, SQLITE_TRANSIENT);
-#if LUA_VERSION_NUM >= 503
-  }
-  else if (lua_isinteger(L, -1))
-  {
-    status = sqlite3_bind_int64(stmt, index, lua_tointeger(L, -1));
-#endif
-  }
-  else if (lua_isnumber(L, -1))
-  {
-    status = sqlite3_bind_double(stmt, index, lua_tonumber(L, -1));
   }
   else if (lua_isnil(L, -1))
   {
