@@ -179,6 +179,14 @@ function TestClutch:testParametersAreInterpolatedProperyInQuery()
     assertResultCount(self.db:query('select 1 from p where pname = :pname'), 0)
 end
 
+function TestClutch:testSupportsBooleanParameter()
+    self.db:update('CREATE TABLE t (pnum INTEGER PRIMARY KEY, avail INTEGER NOT NULL)')
+    self.db:update('insert into t values (?, ?)', 1, true)
+    assertSingleResult(
+        self.db:query('select avail from t where pnum = 1'),
+        { avail = 1})
+end
+
 function TestClutch:testQueryOneReturnsSingleResultAsTable()
     luaunit.assertItemsEquals(
         self.db:queryone('select pname from p where pnum = ?', 1),

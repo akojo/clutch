@@ -141,6 +141,30 @@ end
 `update()` uses the same code for preparing queries as `query()` and its
 friends so you can use all the same mechanisms for parameter binding.
 
+## Data types
+
+### Query parameters
+
+When running queries, Clutch maps Lua types given as query parameters to SQLite types as follows:
+
+- `nil`: _NULL_
+- _number_ represented as an integer: _INTEGER_ (from Lua 5.3 onwards)
+- _number_: _REAL_
+- _string_: _TEXT_
+
+Using any other Lua type (_function_, _userdata_, _thread_, _table_) as a parameter will result in an error.
+
+As a convenience, and to follow SQLite [convention on boolean values](https://www.sqlite.org/datatype3.html#boolean_datatype), Lua values _true_ and _false_ are mapped inside Clutch to integers 1 and 0, respectively.
+
+### Query results
+
+When mapping query results into Lua values, SQLite types are mapped to Lua types as follows:
+
+- _INTEGER_: _number_ (as an integer from Lua 5.3 onwards)
+- _REAL_: _number_
+- _TEXT_ and _BLOB_: _string_
+- _NULL_: `nil`
+
 ## Pragmas
 
 Since `PRAGMA` statements in SQLite are like any other SQL statements, you can

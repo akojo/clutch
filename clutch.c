@@ -287,7 +287,11 @@ static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index)
 {
   int status = SQLITE_OK;
 
-  if (lua_isstring(L, -1))
+  if (lua_isboolean(L, -1))
+  {
+    status = sqlite3_bind_int64(stmt, index, lua_toboolean(L, -1));
+  }
+  else if (lua_isstring(L, -1))
   {
     size_t len;
     const char *text = lua_tolstring(L, -1, &len);
