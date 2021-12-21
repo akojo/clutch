@@ -149,22 +149,17 @@ static int db_transaction(lua_State *L)
 
   int status = sqlite3_exec(db, "SAVEPOINT clutch_savepoint", NULL, NULL, NULL);
   if (status != SQLITE_OK)
-  {
     return luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
 
   lua_settop(L, 2);
   lua_insert(L, -2);
   status = lua_pcall(L, 1, LUA_MULTRET, 0);
 
   if (status == LUA_OK)
-  {
     sqlite3_exec(db, "RELEASE clutch_savepoint", NULL, NULL, NULL);
-  }
   else
-  {
     sqlite3_exec(db, "ROLLBACK TO clutch_savepoint", NULL, NULL, NULL);
-  }
+
   lua_pushboolean(L, status == LUA_OK);
 
   lua_insert(L, 1);
@@ -214,9 +209,7 @@ static sqlite3_stmt *prepare_query(lua_State *L)
 
   int status = bind_stmt(L, stmt, 3);
   if (status != SQLITE_OK)
-  {
     luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
 
   return stmt;
 }
@@ -236,9 +229,7 @@ static sqlite3_stmt *prepare_stmt(lua_State *L, sqlite3 *db)
 
   int status = sqlite3_prepare_v2(db, sql, strlen(sql), stmt, NULL);
   if (status != SQLITE_OK)
-  {
     luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
 
   return *stmt;
 }
@@ -346,9 +337,7 @@ static int bind_lua_vars(lua_State *L, sqlite3_stmt *stmt)
   {
     const char *name = sqlite3_bind_parameter_name(stmt, i);
     if (!name || !is_named_parameter(name))
-    {
       return luaL_error(L, "anonymous and numbered parameters not supported");
-    }
 
     find_var(L, name + 1);
     status = bind_one_param(L, stmt, i);
@@ -390,11 +379,8 @@ static int step_one(lua_State *L, sqlite3_stmt *stmt)
 {
   if (step(L, stmt) == 0)
     luaL_error(L, "no results");
-
   if (step(L, stmt) != 0)
-  {
     luaL_error(L, "too many results");
-  }
   return 1;
 }
 
@@ -409,12 +395,10 @@ static int step_all(lua_State *L, sqlite3_stmt *stmt)
 static int step(lua_State *L, sqlite3_stmt *stmt)
 {
   int status = sqlite3_step(stmt);
-  if (status != SQLITE_ROW)
-  {
-    if (status != SQLITE_DONE)
-      luaL_error(L, "step: %s", sqlite3_errstr(status));
+  if (status == SQLITE_DONE)
     return 0;
-  }
+  else if (status != SQLITE_ROW)
+    luaL_error(L, "step: %s", sqlite3_errstr(status));
 
   handle_row(L, stmt);
   return 1;
@@ -456,11 +440,9 @@ static int update(lua_State *L, sqlite3_stmt *stmt)
 
   int status = sqlite3_step(stmt);
   if (status != SQLITE_DONE)
-  {
     return luaL_error(L, "%s", sqlite3_errmsg(db));
-  }
-  lua_pushinteger(L, sqlite3_changes(db));
 
+  lua_pushinteger(L, sqlite3_changes(db));
   return 1;
 }
 
