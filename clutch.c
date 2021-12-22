@@ -49,6 +49,9 @@ static int update(lua_State *L, sqlite3_stmt *stmt);
 static void close_sqlite(sqlite3 **db);
 static void close_sqlite_stmt(sqlite3_stmt **stmt);
 
+static const char *DB_REGISTRY_KEY = "clutch.sqlite3.db";
+static const char *STMT_REGISTRY_KEY = "clutch.sqlite3.stmt";
+
 static const struct luaL_Reg clutch_funcs[] = {{"open", clutch_open},
                                                {NULL, NULL}};
 
@@ -75,7 +78,7 @@ int luaopen_clutch(lua_State *L)
 
 static void init_db_metatable(lua_State *L)
 {
-  luaL_newmetatable(L, "sqlite3.db");
+  luaL_newmetatable(L, DB_REGISTRY_KEY);
 
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
@@ -85,7 +88,7 @@ static void init_db_metatable(lua_State *L)
 
 static void init_statement_metatable(lua_State *L)
 {
-  luaL_newmetatable(L, "sqlite3.stmt");
+  luaL_newmetatable(L, STMT_REGISTRY_KEY);
 
   lua_pushvalue(L, -1);
   lua_setfield(L, -2, "__index");
@@ -100,7 +103,7 @@ static int clutch_open(lua_State *L)
   sqlite3 **db = (sqlite3 **)lua_newuserdata(L, sizeof(sqlite3 *));
   *db = NULL;
 
-  luaL_getmetatable(L, "sqlite3.db");
+  luaL_getmetatable(L, DB_REGISTRY_KEY);
   lua_setmetatable(L, -2);
 
   if (sqlite3_open(filename, db) != SQLITE_OK)
@@ -114,13 +117,13 @@ static int clutch_open(lua_State *L)
 
 static int db_close(lua_State *L)
 {
-  close_sqlite((sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db"));
+  close_sqlite((sqlite3 **)luaL_checkudata(L, 1, DB_REGISTRY_KEY));
   return 0;
 }
 
 static int db_prepare(lua_State *L)
 {
-  prepare_stmt(L, *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db"));
+  prepare_stmt(L, *(sqlite3 **)luaL_checkudata(L, 1, DB_REGISTRY_KEY));
   return 1;
 }
 
@@ -137,7 +140,7 @@ static int db_query(lua_State *L)
 
 static int db_tostring(lua_State *L)
 {
-  sqlite3 **db = (sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  sqlite3 **db = (sqlite3 **)luaL_checkudata(L, 1, DB_REGISTRY_KEY);
   const char *name = sqlite3_db_filename(*db, "main");
   lua_pushfstring(L, "sqlite3: %s", name);
   return 1;
@@ -145,7 +148,7 @@ static int db_tostring(lua_State *L)
 
 static int db_transaction(lua_State *L)
 {
-  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, DB_REGISTRY_KEY);
   luaL_argcheck(L, lua_type(L, 2) == LUA_TFUNCTION, 2,
                 "argument 2 is not a function");
 
@@ -174,7 +177,7 @@ static int prep_stmt_all(lua_State *L) { return step_all(L, rebind_stmt(L)); }
 
 static int prep_stmt_close(lua_State *L)
 {
-  close_sqlite_stmt((sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt"));
+  close_sqlite_stmt((sqlite3_stmt **)luaL_checkudata(L, 1, STMT_REGISTRY_KEY));
   return 0;
 }
 
@@ -189,7 +192,7 @@ static int prep_stmt_one(lua_State *L) { return step_one(L, rebind_stmt(L)); }
 
 static int prep_stmt_tostring(lua_State *L)
 {
-  sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt");
+  sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, STMT_REGISTRY_KEY);
   lua_pushstring(L, sqlite3_sql(stmt));
   return 1;
 }
@@ -198,7 +201,7 @@ static int prep_stmt_update(lua_State *L) { return update(L, rebind_stmt(L)); }
 
 static sqlite3_stmt *rebind_stmt(lua_State *L)
 {
-  sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, "sqlite3.stmt");
+  sqlite3_stmt *stmt = *(sqlite3_stmt **)luaL_checkudata(L, 1, STMT_REGISTRY_KEY);
   sqlite3_reset(stmt);
   bind_stmt(L, stmt, 1);
   return stmt;
@@ -206,7 +209,7 @@ static sqlite3_stmt *rebind_stmt(lua_State *L)
 
 static sqlite3_stmt *prepare_query(lua_State *L)
 {
-  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, "sqlite3.db");
+  sqlite3 *db = *(sqlite3 **)luaL_checkudata(L, 1, DB_REGISTRY_KEY);
   sqlite3_stmt *stmt = prepare_stmt(L, db);
 
   int status = bind_stmt(L, stmt, 3);
@@ -224,7 +227,7 @@ static sqlite3_stmt *prepare_stmt(lua_State *L, sqlite3 *db)
       (sqlite3_stmt **)lua_newuserdata(L, sizeof(sqlite3_stmt **));
   *stmt = NULL;
 
-  luaL_getmetatable(L, "sqlite3.stmt");
+  luaL_getmetatable(L, STMT_REGISTRY_KEY);
   lua_setmetatable(L, -2);
 
   lua_insert(L, 3);
