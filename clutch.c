@@ -34,6 +34,8 @@ static int bind_params(lua_State *L, sqlite3_stmt *stmt);
 static int bind_varargs(lua_State *L, int nargs, sqlite3_stmt *stmt);
 static int bind_lua_vars(lua_State *L, sqlite3_stmt *stmt);
 static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index);
+static int bind_number(lua_State *L, sqlite3_stmt *stmt, int index);
+static int bind_string(lua_State *L, sqlite3_stmt *stmt, int index);
 static int is_named_parameter(const char *name);
 static void find_var(lua_State *L, const char *name);
 
@@ -278,38 +280,43 @@ static int bind_one_param(lua_State *L, sqlite3_stmt *stmt, int index)
 {
   int status = SQLITE_OK;
 
-  if (lua_isboolean(L, -1))
+  switch (lua_type(L, -1))
   {
+  case LUA_TBOOLEAN:
     status = sqlite3_bind_int64(stmt, index, lua_toboolean(L, -1));
-  }
-#if LUA_VERSION_NUM >= 503
-  else if (lua_isinteger(L, -1))
-  {
-    status = sqlite3_bind_int64(stmt, index, lua_tointeger(L, -1));
-  }
-#endif
-  else if (lua_isnumber(L, -1))
-  {
-    status = sqlite3_bind_double(stmt, index, lua_tonumber(L, -1));
-  }
-  else if (lua_isstring(L, -1))
-  {
-    size_t len;
-    const char *text = lua_tolstring(L, -1, &len);
-    status = sqlite3_bind_text(stmt, index, text, len, SQLITE_TRANSIENT);
-  }
-  else if (lua_isnil(L, -1))
-  {
+    break;
+  case LUA_TNUMBER:
+    status = bind_number(L, stmt, index);
+    break;
+  case LUA_TSTRING:
+    status = bind_string(L, stmt, index);
+    break;
+  case LUA_TNIL:
     status = sqlite3_bind_null(stmt, index);
-  }
-  else
-  {
+    break;
+  default:
     return luaL_error(L, "unsupported lua type '%s' at position %d",
                       lua_typename(L, lua_type(L, -1)), index);
   }
 
   lua_pop(L, 1);
   return status;
+}
+
+static int bind_number(lua_State *L, sqlite3_stmt *stmt, int index)
+{
+#if LUA_VERSION_NUM >= 503
+  if (lua_isinteger(L, -1))
+    return sqlite3_bind_int64(stmt, index, lua_tointeger(L, -1));
+#endif
+  return sqlite3_bind_double(stmt, index, lua_tonumber(L, -1));
+}
+
+static int bind_string(lua_State *L, sqlite3_stmt *stmt, int index)
+{
+  size_t len;
+  const char *text = lua_tolstring(L, -1, &len);
+  return sqlite3_bind_text(stmt, index, text, len, SQLITE_TRANSIENT);
 }
 
 static int bind_varargs(lua_State *L, int nparams, sqlite3_stmt *stmt)
