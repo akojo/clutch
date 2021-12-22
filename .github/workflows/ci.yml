@@ -14,9 +14,6 @@ jobs:
           luaVersion: ${{ matrix.luaVersion }}
       - uses: leafo/gh-actions-luarocks@v4
       - name: build
-        run: |
-          luarocks install luaunit
-          luarocks make
+        run: luarocks build
       - name: test
-        run: |
-          lua test.lua -v
+        run: luarocks test
