@@ -1,9 +1,9 @@
 rockspec_format = "3.0"
 package = "clutch"
-version = "1.3-2"
+version = "1.3.2-2"
 source = {
    url = "git://github.com/akojo/clutch",
-   tag = "v1.3.1"
+   tag = "v1.3.2"
 }
 description = {
    summary = "A simple API for sqlite3",
