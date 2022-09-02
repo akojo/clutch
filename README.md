@@ -184,7 +184,7 @@ prepared statement using database `prepare()` method; then bind parameters and
 run the statement using its `update()`, `query()`, `queryone()` or `queryall()`
 methods. These methods correspond exactly to the database methods of same name.
 
-For example, to „„ate through all red parts:
+For example, to iterate through all red parts:
 
 ```lua
 local stmt = db:prepare("select * from p where color = :color")
